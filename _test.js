@@ -23,11 +23,27 @@ const context = {
   console,
 };
 
+const source = fs.readFileSync(path.join(__dirname, "script.js"), "utf8");
 vm.createContext(context);
-vm.runInContext(
-  fs.readFileSync(path.join(__dirname, "script.js"), "utf8"),
+const calculator = vm.runInContext(
+  `${source}\n;({
+    clearAll,
+    inputOpenParen,
+    inputCloseParen,
+    inputDot,
+    setOperator,
+    inputDigit,
+    applyUnaryFunction,
+    inputConstant,
+    toPercent,
+    equals,
+    getCurrent() {
+      return current;
+    }
+  })`,
   context
 );
+Object.assign(context, calculator);
 
 function reset() {
   context.clearAll();
@@ -35,6 +51,7 @@ function reset() {
 
 function seq(keys) {
   reset();
+  const shouldEvaluate = !keys.includes("=");
   for (const key of keys) {
     if (key === "=") context.equals();
     else if (key === "(") context.inputOpenParen();
@@ -47,9 +64,10 @@ function seq(keys) {
     else if (key === "pi") context.inputConstant("pi");
     else if (key === "%") context.toPercent();
     else if (key === "AC") context.clearAll();
+    else throw new Error(`Unsupported test key: ${key}`);
   }
-  context.equals();
-  return context.current;
+  if (shouldEvaluate) context.equals();
+  return context.getCurrent();
 }
 
 const tests = [];
@@ -68,9 +86,9 @@ t("2^3^2", seq(["2", "^", "3", "^", "2"]), "512");
 t("div0", seq(["8", "÷", "0"]), "Error");
 t("sin30", seq(["3", "0", "sin"]), "0.5");
 t("sqrt9+1", seq(["9", "sqrt", "+", "1"]), "4");
-t("5+3=", seq(["5", "+", "3"]), "5".length ? "8" : "8");
+t("5+3=", seq(["5", "+", "3", "="]), "8");
 t("paren auto close", seq(["(", "2", "+", "3"]), "5");
-t("percent 200+10%", () => {
+t("percent 200+10%", (() => {
   reset();
   context.inputDigit("2");
   context.inputDigit("0");
@@ -80,8 +98,8 @@ t("percent 200+10%", () => {
   context.inputDigit("0");
   context.toPercent();
   context.equals();
-  return context.current;
-}(), "220");
+  return context.getCurrent();
+})(), "220");
 
 const failed = tests.filter((x) => !x.ok);
 console.log(JSON.stringify({ total: tests.length, failed: failed.length, fails: failed }, null, 2));

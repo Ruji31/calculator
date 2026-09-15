@@ -248,7 +248,14 @@ function toPercent() {
     break;
   }
 
-  if (base !== null && !Number.isNaN(base) && isOperator(lastToken())) {
+  const operator = lastToken();
+  if (base !== null && !Number.isNaN(base) && isOperator(operator)) {
+    const percentValue =
+      operator === "+" || operator === "−"
+        ? (base * val) / 100
+        : val / 100;
+    current = formatNumber(percentValue);
+  } else {
     current = formatNumber(val / 100);
   }
   overwrite = true;
